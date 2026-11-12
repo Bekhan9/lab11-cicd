@@ -1,0 +1,50 @@
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to deploy"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, macOS, ARM64]
+    environment: production
+
+    env:
+      TAG: ${{ inputs.tag }}
+
+    steps:
+      - name: Deploy Docker image
+        run: |
+          set -euo pipefail
+
+          case "$TAG" in
+            1.0.0|1.0.1) ;;
+            *) echo "Unsupported tag: $TAG"; exit 1 ;;
+          esac
+
+          IMAGE="ghcr.io/$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+
+          docker pull --platform linux/amd64 "$IMAGE:$TAG"
+          docker rm -f lab11-prod 2>/dev/null || true
+
+          docker run -d \
+            --platform linux/amd64 \
+            --name lab11-prod \
+            -p 8012:8000 \
+            "$IMAGE:$TAG"
+
+          docker ps --filter name=lab11-prod
+          curl --retry 5 --retry-delay 2 --retry-connrefused \
+            -fsS http://localhost:8012/version
