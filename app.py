@@ -14,7 +14,7 @@ def greet(name: str) -> str:
 
 @app.get("/")
 def index():
-    return {"host": socket.gethostname(), "greeting": greet("narxoz")}
+    return {"host": socket.gethostname(), "greeting": greet("narxoz release 1.0.1")}
 
 
 @app.get("/healthz")
